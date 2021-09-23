@@ -18,7 +18,8 @@ import ListItemText from '@mui/material/ListItemText';
 import InboxIcon from '@mui/icons-material/MoveToInbox';
 import MailIcon from '@mui/icons-material/Mail';
 import {Map, InfoWindow, Marker, GoogleApiWrapper} from 'google-maps-react';
-import notion from './Notion'
+import RestaurantCard from './RestaurantCard'
+import {getDatabase, geocode} from './Notion'
 
 const drawerWidth = 240;
 
@@ -67,16 +68,30 @@ const DrawerHeader = styled('div')(({ theme }) => ({
   justifyContent: 'flex-end',
 }));
 
-function Layout({google, locations = []}) {
+function Layout({google}) {
   const theme = useTheme();
   const [open, setOpen] = React.useState(false);
   const [markerClick, setMarkerClick] = React.useState(true);
   const [mapClick, setMapClick] = React.useState(true);
+  const [locations, setLocations] = React.useState([]);
   const [state, setState] = React.useState({
     showingInfoWindow: false,
     activeMarker: {},
     selectedPlace: {},
   });
+
+  React.useEffect(() => {
+    try {
+      getDatabase().then(response => {
+        if (response != null && response.results != null) {
+          setLocations(response.results || []);
+        }
+      })
+    } catch (error) {
+      console.log(error)
+    }
+  },[])
+  
 
   const handleDrawerOpen = () => {
     setOpen(true);
@@ -87,12 +102,14 @@ function Layout({google, locations = []}) {
   };
 
 
-  const handleMarkerClick = (props, marker, e) =>
+  const handleMarkerClick = (props, marker, e) => {
+    console.log({'props': props})
     setState({
       selectedPlace: props,
       activeMarker: marker,
       showingInfoWindow: true
     });
+  }
 
   const onMapClicked = (props) => {
     if (state.showingInfoWindow) {
@@ -165,15 +182,16 @@ function Layout({google, locations = []}) {
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
-        <Map google={google} containerStyle={{position: 'static', width: '100%', height: '100%'}} style={{width: '100%', height: '100%'}} onClick={onMapClicked}>
-          {notion.map(location => <Marker position={location.location}/>)}
-          <Marker onClick={handleMarkerClick} name={'Current location'} />
+        <Map google={google} zoom={11} initialCenter={{ lat: 47.6, lng: -122.1 }} containerStyle={{position: 'static', width: '100%', height: '100%'}} style={{width: '100%', height: '100%'}} onClick={onMapClicked}>
+          {locations.map(location => {
+            console.log(location);
+            return <Marker onClick={handleMarkerClick} restaurant={location} position={{lat: location.properties.Latitude.number, lng: location.properties.Longitude.number}}/>
+          })
+          }
           <InfoWindow
             marker={state.activeMarker}
             visible={state.showingInfoWindow}>
-              <div>
-                <h1>Brett Spradling</h1>
-              </div>
+              <RestaurantCard restaurant={state.selectedPlace}/>
           </InfoWindow>
         </Map>
       </Main>
